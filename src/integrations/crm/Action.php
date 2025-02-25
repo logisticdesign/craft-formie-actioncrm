@@ -70,10 +70,12 @@ class Action extends Crm
             new IntegrationField([
                 'handle' => 'firstName',
                 'name' => Craft::t('formie-actioncrm', 'Nome'),
+                'required' => true,
             ]),
             new IntegrationField([
                 'handle' => 'lastName',
                 'name' => Craft::t('formie-actioncrm', 'Cognome'),
+                'required' => true,
             ]),
             new IntegrationField([
                 'handle' => 'phone',
@@ -89,7 +91,7 @@ class Action extends Crm
             ]),
             new IntegrationField([
                 'handle' => 'sourceUri',
-                'name' => Craft::t('formie-actioncrm', 'URL'),
+                'name' => Craft::t('formie-actioncrm', 'URL di provenienza'),
             ]),
             new IntegrationField([
                 'handle' => 'marketing',
