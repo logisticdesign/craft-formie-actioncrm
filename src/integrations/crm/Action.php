@@ -7,6 +7,13 @@ use Craft;
 use craft\helpers\App;
 use craft\helpers\StringHelper;
 use GuzzleHttp\Client;
+use logisticdesign\formieactioncrm\enums\ContactSourceEnum;
+use logisticdesign\formieactioncrm\enums\ContactSourceIdEnum;
+use logisticdesign\formieactioncrm\enums\CustomerTypeEnum;
+use logisticdesign\formieactioncrm\enums\DepartmentEnum;
+use logisticdesign\formieactioncrm\enums\LeadRequestTypeEnum;
+use logisticdesign\formieactioncrm\enums\PrivacyTypeEnum;
+use logisticdesign\formieactioncrm\enums\VehicleChannelEnum;
 use Throwable;
 use verbb\formie\base\Crm;
 use verbb\formie\base\Integration;
@@ -21,7 +28,7 @@ class Action extends Crm
     public ?string $password = null;
     public ?string $sourceId = null;
 
-    public ?array $fieldMapping = null;
+    public ?array $leadFieldMapping = null;
 
     public static function displayName(): string
     {
@@ -62,15 +69,59 @@ class Action extends Crm
             ]),
             new IntegrationField([
                 'handle' => 'firstName',
-                'name' => Craft::t('formie-actioncrm', 'First name'),
+                'name' => Craft::t('formie-actioncrm', 'Nome'),
             ]),
             new IntegrationField([
                 'handle' => 'lastName',
-                'name' => Craft::t('formie-actioncrm', 'Last name'),
+                'name' => Craft::t('formie-actioncrm', 'Cognome'),
             ]),
             new IntegrationField([
                 'handle' => 'phone',
-                'name' => Craft::t('formie-actioncrm', 'Phone'),
+                'name' => Craft::t('formie-actioncrm', 'Telefono'),
+            ]),
+            new IntegrationField([
+                'handle' => 'salesDepartment',
+                'name' => Craft::t('formie-actioncrm', 'Reparto (default: SALES)'),
+            ]),
+            new IntegrationField([
+                'handle' => 'leadRequestType',
+                'name' => Craft::t('formie-actioncrm', 'Tipo richiesta Lead (default: INFO)'),
+            ]),
+            new IntegrationField([
+                'handle' => 'sourceUri',
+                'name' => Craft::t('formie-actioncrm', 'URL'),
+            ]),
+            new IntegrationField([
+                'handle' => 'marketing',
+                'name' => Craft::t('formie-actioncrm', 'Marketing'),
+            ]),
+            new IntegrationField([
+                'handle' => 'message',
+                'name' => Craft::t('formie-actioncrm', 'Messaggio'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleBrandName',
+                'name' => Craft::t('formie-actioncrm', 'Veicolo: Brand'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleModelName',
+                'name' => Craft::t('formie-actioncrm', 'Veicolo: Modello'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleVersionName',
+                'name' => Craft::t('formie-actioncrm', 'Veicolo: Versione'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleChannel',
+                'name' => Craft::t('formie-actioncrm', "Veicolo: Canale d'acquisto"),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleKm',
+                'name' => Craft::t('formie-actioncrm', 'Veicolo: Km'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehiclePlate',
+                'name' => Craft::t('formie-actioncrm', 'Veicolo: Targa'),
             ]),
         ];
 
@@ -82,31 +133,48 @@ class Action extends Crm
     public function sendPayload(Submission $submission): bool
     {
         try {
-            $formValues = $this->getFieldMappingValues($submission, $this->fieldMapping, $this->getFormSettingValue('lead'));
+            $formValues = $this->getFieldMappingValues($submission, $this->leadFieldMapping, $this->getFormSettingValue('lead'));
             $formHandle = $submission->getFormHandle();
+
+            $privacyType = ($formValues['marketing'] ?? null)
+                ? PrivacyTypeEnum::MARKETING
+                : PrivacyTypeEnum::REQUEST;
+
+            $vehicleChannel = $formValues['vehicleChannel'] ?? null;
+            $vehicleChannelEnum = VehicleChannelEnum::tryFrom($vehicleChannel);
+
+            $isUsedVehicle = $vehicleChannelEnum ? $vehicleChannelEnum->isUsed() : null;
 
             $payload = [
                 'ImportSourceID' => App::parseEnv($this->sourceId),
                 'ImportSourceLeadID' => StringHelper::UUID(),
                 'SourceLeadCreationDateUtc' => Carbon::now()->format('Y-m-d H:i'),
-                // 'SalesDepartmentID' => $this->salesDepartmentId($submission),
-                // 'LeadRequestTypeID' => $this->leadRequestTypeId($submission),
-                'ContactSourceID' => 'EMAIL',
-                'CustomerTypeID' => 'P',
+                'SalesDepartmentID' => $formValues['salesDepartment'] ?? DepartmentEnum::SALES,
+                'LeadRequestTypeID' => $formValues['leadRequestType'] ?? LeadRequestTypeEnum::INFO,
+                'ContactSourceID' => ContactSourceEnum::EMAIL,
+                'CustomerTypeID' => CustomerTypeEnum::PRIVATE,
                 'FirstName' => $formValues['firstName'] ?? '',
                 'LastName' => $formValues['lastName'] ?? '',
                 'Email1' => $formValues['email'] ?? '',
                 'Mobile1' => $formValues['phone'] ?? '',
-                // 'SourceURI' => $submission->message['referralUrl'] ?? '',
+                'SourceURI' => $formValues['sourceUri'] ?? '',
                 'OriginCodes' => [
                     ['OriginCode' => 'utm_source', 'OriginValue' => 'website'],
                     ['OriginCode' => 'utm_medium', 'OriginValue' => 'form'],
                     ['OriginCode' => 'utm_campaign', 'OriginValue' => $formHandle],
                 ],
-                // 'PrivacyType' => $this->privacyType($submission),
+                'PrivacyType' => $privacyType,
+                'LeadComment' => $formValues['message'] ?? '',
+                'BrandName' => $formValues['vehicleBrandName'] ?? '',
+                'ModelName' => $formValues['vehicleModelName'] ?? '',
+                'VersionName' => $formValues['vehicleVersionName'] ?? '',
+                'VehicleChannelID' => $vehicleChannel,
+                'IsUsedVehicle' => $isUsedVehicle,
+                'OwnedKm' => $formValues['vehicleKm'] ?? '',
+                'OwnedNumberPlate' => $formValues['vehiclePlate'] ?? '',
             ];
 
-            // $this->deliverPayload($submission, 'api/lead/post', $payload);
+            $this->deliverPayload($submission, 'api/lead/post', $payload);
 
         } catch (Throwable $e) {
             Integration::apiError($this, $e);
@@ -172,11 +240,11 @@ class Action extends Crm
 
         $rules[] = [['username', 'password', 'sourceId'], 'required'];
 
-        $main = $this->getFormSettingValue('main');
+        $lead = $this->getFormSettingValue('lead');
 
         // Validate when saving form settings
         $rules[] = [
-            ['fieldMapping'], 'validateFieldMapping', 'params' => $main, 'when' => function($model) {
+            ['leadFieldMapping'], 'validateFieldMapping', 'params' => $lead, 'when' => function($model) {
                 return $model->enabled;
             }, 'on' => [Integration::SCENARIO_FORM],
         ];

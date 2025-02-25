@@ -28,3 +28,10 @@ composer require logistic-design/craft-formie-actioncrm
 # tell Craft to install the plugin
 ./craft plugin/install formie-actioncrm
 ```
+
+## Add an integration in the Formie settings
+
+1. Open Formie settings and go to **CRM** under **Integrations**
+2. Click the **New Integration** button.
+3. Select the **Action CRM** option and follow instructions
+4. Click the **Refresh** button to check API connection

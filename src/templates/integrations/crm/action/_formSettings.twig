@@ -5,16 +5,6 @@
 {% set displayName = integration.displayName() %}
 {% set formSettings = integration.getFormSettings().getSettings() %}
 
-<field-select
-    label="{{ 'Opt-In Field' | t('formie') }}"
-    instructions="{{ 'Choose a field to opt-in to {name}. For example, you might only wish to record user data if they provide a value for a field of your choice - commonly, an Agree field.' | t('formie', { name: displayName }) }}"
-    id="opt-in-field"
-    name="optInField"
-    :value="get(form, 'settings.integrations.{{ handle }}.optInField')"
-></field-select>
-
-<hr>
-
 <integration-form-settings handle="{{ handle }}" :form-settings="{{ formSettings | json_encode }}">
     <template v-slot="{ get, isEmpty, input, settings, sourceId, loading, refresh, error, errorMessage, getSourceFields }">
         <div class="field">
@@ -28,17 +18,17 @@
 
         <div id="map-map">
             <integration-field-mapping
-                label="{{ 'Field Mapping' | t('formie') }}"
+                label="{{ 'Lead Field Mapping' | t('formie') }}"
                 instructions="{{ 'Choose how your form fields should map to your {name} fields.' | t('formie', { name: displayName }) }}"
                 name-label="{{ integration.displayName() }}"
-                id="field-mapping"
-                name="fieldMapping"
-                :value="get(form, 'settings.integrations.{{ handle }}.fieldMapping')"
+                id="lead-field-mapping"
+                name="leadFieldMapping"
+                :value="get(form, 'settings.integrations.{{ handle }}.leadFieldMapping')"
                 :rows="get(settings, 'lead')"
             ></integration-field-mapping>
 
-            <ul v-if="!isEmpty(get(form, 'settings.integrations.{{ handle }}.errors.fieldMapping'))" class="errors" v-cloak>
-                <li v-for="(error, index) in get(form, 'settings.integrations.{{ handle }}.errors.fieldMapping')" :key="index">
+            <ul v-if="!isEmpty(get(form, 'settings.integrations.{{ handle }}.errors.leadFieldMapping'))" class="errors" v-cloak>
+                <li v-for="(error, index) in get(form, 'settings.integrations.{{ handle }}.errors.leadFieldMapping')" :key="index">
                     ${ error }
                 </li>
             </ul>
