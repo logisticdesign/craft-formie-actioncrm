@@ -1,0 +1,48 @@
+{
+  "name": "logisticdesign/craft-formie-actioncrm",
+  "description": "Action CRM integration for Formie",
+  "type": "craft-plugin",
+  "license": "mit",
+  "support": {
+    "email": "dev@logisticdesign.it",
+    "issues": "https://github.com/logisticdesign/craft-formie-actioncrm/issues?state=open",
+    "source": "https://github.com/logisticdesign/craft-formie-actioncrm",
+    "docs": "https://github.com/logisticdesign/craft-formie-actioncrm",
+    "rss": "https://github.com/logisticdesign/craft-formie-actioncrm/releases.atom"
+  },
+  "require": {
+    "php": ">=8.2",
+    "craftcms/cms": "^5.6.0"
+  },
+  "require-dev": {
+    "craftcms/ecs": "dev-master",
+    "craftcms/phpstan": "dev-master"
+  },
+  "autoload": {
+    "psr-4": {
+      "logisticdesign\\formieactioncrm\\": "src/"
+    }
+  },
+  "extra": {
+    "handle": "formie-actioncrm",
+    "name": "Action CRM for Formie",
+    "developer": "Logistic Design",
+    "documentationUrl": "https://github.com/logisticdesign/craft-formie-actioncrm",
+    "class": "logisticdesign\\formieactioncrm\\FormieActionCrm"
+  },
+  "scripts": {
+    "check-cs": "ecs check --ansi",
+    "fix-cs": "ecs check --ansi --fix",
+    "phpstan": "phpstan --memory-limit=1G"
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.2"
+    },
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true,
+      "craftcms/plugin-installer": true
+    }
+  }
+}
