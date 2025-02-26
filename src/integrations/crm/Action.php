@@ -90,16 +90,12 @@ class Action extends Crm
                 'name' => Craft::t('formie-actioncrm', 'Tipo richiesta Lead (default: INFO)'),
             ]),
             new IntegrationField([
-                'handle' => 'sourceUri',
-                'name' => Craft::t('formie-actioncrm', 'URL di provenienza'),
+                'handle' => 'message',
+                'name' => Craft::t('formie-actioncrm', 'Messaggio'),
             ]),
             new IntegrationField([
                 'handle' => 'marketing',
-                'name' => Craft::t('formie-actioncrm', 'Marketing'),
-            ]),
-            new IntegrationField([
-                'handle' => 'message',
-                'name' => Craft::t('formie-actioncrm', 'Messaggio'),
+                'name' => Craft::t('formie-actioncrm', 'Flag Marketing'),
             ]),
             new IntegrationField([
                 'handle' => 'vehicleBrandName',
@@ -159,7 +155,7 @@ class Action extends Crm
                 'LastName' => $formValues['lastName'] ?? '',
                 'Email1' => $formValues['email'] ?? '',
                 'Mobile1' => $formValues['phone'] ?? '',
-                'SourceURI' => $formValues['sourceUri'] ?? '',
+                'SourceURI' => Craft::$app->getRequest()->getAbsoluteUrl(),
                 'OriginCodes' => [
                     ['OriginCode' => 'utm_source', 'OriginValue' => 'website'],
                     ['OriginCode' => 'utm_medium', 'OriginValue' => 'form'],

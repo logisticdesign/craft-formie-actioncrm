@@ -34,12 +34,10 @@ class FormieActionCrm extends Plugin
     {
         parent::init();
 
-        $this->attachEventHandlers();
-
         // Any code that creates an element query or loads Twig should be deferred until
         // after Craft is fully initialized, to avoid conflicts with other plugins/modules
         Craft::$app->onInit(function() {
-            // ...
+            $this->attachEventHandlers();
         });
     }
 
