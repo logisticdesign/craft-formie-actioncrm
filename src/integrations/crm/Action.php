@@ -6,7 +6,6 @@ use Carbon\Carbon;
 use Craft;
 use craft\helpers\App;
 use craft\helpers\StringHelper;
-use Exception;
 use GuzzleHttp\Client;
 use logisticdesign\formieactioncrm\enums\ContactSourceEnum;
 use logisticdesign\formieactioncrm\enums\CustomerTypeEnum;
@@ -174,9 +173,10 @@ class Action extends Crm
             $response = $this->deliverPayload($submission, 'api/lead/post', [$payload]);
 
             if ($response['IsSuccess'] === false) {
-                throw new Exception($response['ErrorMessage']);
-            }
+                Integration::apiError($this, $response['ErrorMessage']);
 
+                return false;
+            }
         } catch (Throwable $e) {
             Integration::apiError($this, $e);
 

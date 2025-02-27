@@ -1,6 +1,3 @@
-> [!WARNING]
-> This plugin is in alpha and not ready for distribution. Do not use it in your projects.
-
 # Action CRM for Formie
 
 Action CRM integration for Formie
