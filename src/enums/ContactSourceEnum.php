@@ -2,10 +2,10 @@
 
 namespace logisticdesign\formieactioncrm\enums;
 
-enum ContactSourceEnum
+enum ContactSourceEnum: string
 {
     case EMAIL = 'EMAIL';
-    case CHAT = 'EMAIL';
+    case CHAT = 'CHAT';
     case TEL = 'TEL';
     case WALKIN = 'WALKIN';
 }

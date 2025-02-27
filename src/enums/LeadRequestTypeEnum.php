@@ -2,7 +2,7 @@
 
 namespace logisticdesign\formieactioncrm\enums;
 
-enum LeadRequestTypeEnum
+enum LeadRequestTypeEnum: string
 {
     case ASS = 'ASS'; // Servizi assistenza SERV
     case TDR = 'TDR'; // Test-drive SALES

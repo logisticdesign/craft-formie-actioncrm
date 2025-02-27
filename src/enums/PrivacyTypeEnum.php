@@ -2,7 +2,7 @@
 
 namespace logisticdesign\formieactioncrm\enums;
 
-enum PrivacyTypeEnum
+enum PrivacyTypeEnum: string
 {
     case REQUEST = 'REQUEST';
     case MARKETING = 'MARKETING';

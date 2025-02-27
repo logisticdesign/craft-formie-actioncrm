@@ -2,7 +2,7 @@
 
 namespace logisticdesign\formieactioncrm\enums;
 
-enum VehicleChannelEnum
+enum VehicleChannelEnum: string
 {
     case NEW = 'NEW';
     case USED = 'USED';

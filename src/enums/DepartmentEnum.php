@@ -2,7 +2,7 @@
 
 namespace logisticdesign\formieactioncrm\enums;
 
-enum DepartmentEnum
+enum DepartmentEnum: string
 {
     case SALES = 'SALES';
     case SERVICE = 'SERV';

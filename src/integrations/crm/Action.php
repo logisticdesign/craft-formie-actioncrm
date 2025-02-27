@@ -6,9 +6,9 @@ use Carbon\Carbon;
 use Craft;
 use craft\helpers\App;
 use craft\helpers\StringHelper;
+use Exception;
 use GuzzleHttp\Client;
 use logisticdesign\formieactioncrm\enums\ContactSourceEnum;
-use logisticdesign\formieactioncrm\enums\ContactSourceIdEnum;
 use logisticdesign\formieactioncrm\enums\CustomerTypeEnum;
 use logisticdesign\formieactioncrm\enums\DepartmentEnum;
 use logisticdesign\formieactioncrm\enums\LeadRequestTypeEnum;
@@ -18,7 +18,6 @@ use Throwable;
 use verbb\formie\base\Crm;
 use verbb\formie\base\Integration;
 use verbb\formie\elements\Submission;
-use verbb\formie\Formie;
 use verbb\formie\models\IntegrationField;
 use verbb\formie\models\IntegrationFormSettings;
 
@@ -82,16 +81,16 @@ class Action extends Crm
                 'name' => Craft::t('formie-actioncrm', 'Telefono'),
             ]),
             new IntegrationField([
+                'handle' => 'message',
+                'name' => Craft::t('formie-actioncrm', 'Messaggio'),
+            ]),
+            new IntegrationField([
                 'handle' => 'salesDepartment',
                 'name' => Craft::t('formie-actioncrm', 'Reparto (default: SALES)'),
             ]),
             new IntegrationField([
                 'handle' => 'leadRequestType',
                 'name' => Craft::t('formie-actioncrm', 'Tipo richiesta Lead (default: INFO)'),
-            ]),
-            new IntegrationField([
-                'handle' => 'message',
-                'name' => Craft::t('formie-actioncrm', 'Messaggio'),
             ]),
             new IntegrationField([
                 'handle' => 'marketing',
@@ -135,8 +134,8 @@ class Action extends Crm
             $formHandle = $submission->getFormHandle();
 
             $privacyType = ($formValues['marketing'] ?? null)
-                ? PrivacyTypeEnum::MARKETING
-                : PrivacyTypeEnum::REQUEST;
+                ? PrivacyTypeEnum::MARKETING->value
+                : PrivacyTypeEnum::REQUEST->value;
 
             $vehicleChannel = $formValues['vehicleChannel'] ?? null;
             $vehicleChannelEnum = VehicleChannelEnum::tryFrom($vehicleChannel);
@@ -147,14 +146,14 @@ class Action extends Crm
                 'ImportSourceID' => App::parseEnv($this->sourceId),
                 'ImportSourceLeadID' => StringHelper::UUID(),
                 'SourceLeadCreationDateUtc' => Carbon::now()->format('Y-m-d H:i'),
-                'SalesDepartmentID' => $formValues['salesDepartment'] ?? DepartmentEnum::SALES,
-                'LeadRequestTypeID' => $formValues['leadRequestType'] ?? LeadRequestTypeEnum::INFO,
-                'ContactSourceID' => ContactSourceEnum::EMAIL,
-                'CustomerTypeID' => CustomerTypeEnum::PRIVATE,
-                'FirstName' => $formValues['firstName'] ?? '',
-                'LastName' => $formValues['lastName'] ?? '',
-                'Email1' => $formValues['email'] ?? '',
-                'Mobile1' => $formValues['phone'] ?? '',
+                'SalesDepartmentID' => $formValues['salesDepartment'] ?? DepartmentEnum::SALES->value,
+                'LeadRequestTypeID' => $formValues['leadRequestType'] ?? LeadRequestTypeEnum::INFO->value,
+                'ContactSourceID' => ContactSourceEnum::EMAIL->value,
+                'CustomerTypeID' => CustomerTypeEnum::PRIVATE->value,
+                'FirstName' => $formValues['firstName'] ?? null,
+                'LastName' => $formValues['lastName'] ?? null,
+                'Email1' => $formValues['email'] ?? null,
+                'Mobile1' => $formValues['phone'] ?? null,
                 'SourceURI' => Craft::$app->getRequest()->getAbsoluteUrl(),
                 'OriginCodes' => [
                     ['OriginCode' => 'utm_source', 'OriginValue' => 'website'],
@@ -162,17 +161,21 @@ class Action extends Crm
                     ['OriginCode' => 'utm_campaign', 'OriginValue' => $formHandle],
                 ],
                 'PrivacyType' => $privacyType,
-                'LeadComment' => $formValues['message'] ?? '',
-                'BrandName' => $formValues['vehicleBrandName'] ?? '',
-                'ModelName' => $formValues['vehicleModelName'] ?? '',
-                'VersionName' => $formValues['vehicleVersionName'] ?? '',
+                'LeadComment' => $formValues['message'] ?? null,
+                'BrandName' => $formValues['vehicleBrandName'] ?? null,
+                'ModelName' => $formValues['vehicleModelName'] ?? null,
+                'VersionName' => $formValues['vehicleVersionName'] ?? null,
                 'VehicleChannelID' => $vehicleChannel,
                 'IsUsedVehicle' => $isUsedVehicle,
-                'OwnedKm' => $formValues['vehicleKm'] ?? '',
-                'OwnedNumberPlate' => $formValues['vehiclePlate'] ?? '',
+                'OwnedKm' => $formValues['vehicleKm'] ?? null,
+                'OwnedNumberPlate' => $formValues['vehiclePlate'] ?? null,
             ];
 
-            $this->deliverPayload($submission, 'api/lead/post', $payload);
+            $response = $this->deliverPayload($submission, 'api/lead/post', [$payload]);
+
+            if ($response['IsSuccess'] === false) {
+                throw new Exception($response['ErrorMessage']);
+            }
 
         } catch (Throwable $e) {
             Integration::apiError($this, $e);

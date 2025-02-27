@@ -2,7 +2,7 @@
 
 namespace logisticdesign\formieactioncrm\enums;
 
-enum CustomerTypeEnum
+enum CustomerTypeEnum: string
 {
     case PRIVATE = 'P';
     case BUSINESS = 'B';
