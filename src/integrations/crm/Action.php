@@ -4,6 +4,7 @@ namespace logisticdesign\formieactioncrm\integrations\crm;
 
 use Carbon\Carbon;
 use Craft;
+use craft\base\Event;
 use craft\helpers\App;
 use craft\helpers\StringHelper;
 use GuzzleHttp\Client;
@@ -13,6 +14,7 @@ use logisticdesign\formieactioncrm\enums\DepartmentEnum;
 use logisticdesign\formieactioncrm\enums\LeadRequestTypeEnum;
 use logisticdesign\formieactioncrm\enums\PrivacyTypeEnum;
 use logisticdesign\formieactioncrm\enums\VehicleChannelEnum;
+use logisticdesign\formieactioncrm\events\PayloadEvent;
 use Throwable;
 use verbb\formie\base\Crm;
 use verbb\formie\base\Integration;
@@ -22,11 +24,20 @@ use verbb\formie\models\IntegrationFormSettings;
 
 class Action extends Crm
 {
+    const EVENT_BEFORE_SEND_PAYLOAD = 'onBeforeSendPayload';
+    const EVENT_AFTER_SEND_PAYLOAD = 'onBeforeSendPayload';
+
+    // Properties
+    // =========================================================================
+
     public ?string $username = null;
     public ?string $password = null;
     public ?string $sourceId = null;
 
     public ?array $leadFieldMapping = null;
+
+    // Methods
+    // =========================================================================
 
     public static function displayName(): string
     {
@@ -93,31 +104,11 @@ class Action extends Crm
             ]),
             new IntegrationField([
                 'handle' => 'marketing',
-                'name' => Craft::t('formie-actioncrm', 'Flag Marketing'),
+                'name' => Craft::t('formie-actioncrm', 'Consenso Marketing'),
             ]),
             new IntegrationField([
-                'handle' => 'vehicleBrandName',
-                'name' => Craft::t('formie-actioncrm', 'Veicolo: Brand'),
-            ]),
-            new IntegrationField([
-                'handle' => 'vehicleModelName',
-                'name' => Craft::t('formie-actioncrm', 'Veicolo: Modello'),
-            ]),
-            new IntegrationField([
-                'handle' => 'vehicleVersionName',
-                'name' => Craft::t('formie-actioncrm', 'Veicolo: Versione'),
-            ]),
-            new IntegrationField([
-                'handle' => 'vehicleChannel',
-                'name' => Craft::t('formie-actioncrm', "Veicolo: Canale d'acquisto"),
-            ]),
-            new IntegrationField([
-                'handle' => 'vehicleKm',
-                'name' => Craft::t('formie-actioncrm', 'Veicolo: Km'),
-            ]),
-            new IntegrationField([
-                'handle' => 'vehiclePlate',
-                'name' => Craft::t('formie-actioncrm', 'Veicolo: Targa'),
+                'handle' => 'vehicleUid',
+                'name' => Craft::t('formie-actioncrm', 'UID Veicolo'),
             ]),
         ];
 
@@ -135,11 +126,6 @@ class Action extends Crm
             $privacyType = ($formValues['marketing'] ?? null)
                 ? PrivacyTypeEnum::MARKETING->value
                 : PrivacyTypeEnum::REQUEST->value;
-
-            $vehicleChannel = $formValues['vehicleChannel'] ?? null;
-            $vehicleChannelEnum = VehicleChannelEnum::tryFrom($vehicleChannel);
-
-            $isUsedVehicle = $vehicleChannelEnum ? $vehicleChannelEnum->isUsed() : null;
 
             $payload = [
                 'ImportSourceID' => App::parseEnv($this->sourceId),
@@ -161,16 +147,31 @@ class Action extends Crm
                 ],
                 'PrivacyType' => $privacyType,
                 'LeadComment' => $formValues['message'] ?? null,
-                'BrandName' => $formValues['vehicleBrandName'] ?? null,
-                'ModelName' => $formValues['vehicleModelName'] ?? null,
-                'VersionName' => $formValues['vehicleVersionName'] ?? null,
-                'VehicleChannelID' => $vehicleChannel,
-                'IsUsedVehicle' => $isUsedVehicle,
-                'OwnedKm' => $formValues['vehicleKm'] ?? null,
-                'OwnedNumberPlate' => $formValues['vehiclePlate'] ?? null,
             ];
 
+            $event = new PayloadEvent([
+                'payload' => $payload,
+                'formHandle' => $formHandle,
+                'formValues' => $formValues,
+            ]);
+
+            Event::trigger(static::class, self::EVENT_BEFORE_SEND_PAYLOAD, $event);
+
+            $payload = $event->payload;
+            $channel = $payload['VehicleChannelID'] ?? null;
+
+            if ($channel) {
+                $channel = $channel instanceof VehicleChannelEnum ? $channel->value : $channel;
+
+                $payload['IsUsedVehicle'] = VehicleChannelEnum::tryFrom($channel)?->isUsed();
+                $payload['VehicleChannelID'] = $channel;
+            }
+
             $response = $this->deliverPayload($submission, 'api/lead/post', [$payload]);
+
+            $event->response = $response;
+
+            Event::trigger(static::class, self::EVENT_AFTER_SEND_PAYLOAD, $event);
 
             if ($response['IsSuccess'] === false) {
                 Integration::apiError($this, $response['ErrorMessage']);
