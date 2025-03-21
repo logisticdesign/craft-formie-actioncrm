@@ -87,6 +87,10 @@ class Action extends Crm
                 'required' => true,
             ]),
             new IntegrationField([
+                'handle' => 'sourceUri',
+                'name' => Craft::t('formie-actioncrm', 'URL'),
+            ]),
+            new IntegrationField([
                 'handle' => 'phone',
                 'name' => Craft::t('formie-actioncrm', 'Telefono'),
             ]),
@@ -130,7 +134,7 @@ class Action extends Crm
             $payload = [
                 'ImportSourceID' => App::parseEnv($this->sourceId),
                 'ImportSourceLeadID' => StringHelper::UUID(),
-                'SourceLeadCreationDateUtc' => Carbon::now()->format('Y-m-d H:i'),
+                'SourceLeadCreationDateUtc' => $submission->dateCreated->format('Y-m-d H:i'),
                 'SalesDepartmentID' => $formValues['salesDepartment'] ?? DepartmentEnum::SALES->value,
                 'LeadRequestTypeID' => $formValues['leadRequestType'] ?? LeadRequestTypeEnum::INFO->value,
                 'ContactSourceID' => ContactSourceEnum::EMAIL->value,
@@ -139,7 +143,7 @@ class Action extends Crm
                 'LastName' => $formValues['lastName'] ?? null,
                 'Email1' => $formValues['email'] ?? null,
                 'Mobile1' => $formValues['phone'] ?? null,
-                'SourceURI' => Craft::$app->getRequest()->getAbsoluteUrl(),
+                'SourceURI' => $formValues['sourceUri'] ?? Craft::$app->getSites()->getPrimarySite()->getBaseUrl(),
                 'OriginCodes' => [
                     ['OriginCode' => 'utm_source', 'OriginValue' => 'website'],
                     ['OriginCode' => 'utm_medium', 'OriginValue' => 'form'],
@@ -169,6 +173,7 @@ class Action extends Crm
 
             $response = $this->deliverPayload($submission, 'api/lead/post', [$payload]);
 
+            $event->payload = $payload;
             $event->response = $response;
 
             Event::trigger(static::class, self::EVENT_AFTER_SEND_PAYLOAD, $event);

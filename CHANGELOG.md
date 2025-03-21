@@ -5,3 +5,6 @@
 
 ## 1.0.1
 - Fixed sendPayload and added payload events
+
+## 1.0.2
+- Fixed SourceURI, SourceLeadCreationDateUtc and event payload
