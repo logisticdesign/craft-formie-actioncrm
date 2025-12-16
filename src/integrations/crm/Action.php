@@ -27,6 +27,11 @@ class Action extends Crm
     const EVENT_BEFORE_SEND_PAYLOAD = 'onBeforeSendPayload';
     const EVENT_AFTER_SEND_PAYLOAD = 'onBeforeSendPayload';
 
+    // Canale d'acquisto veicolo
+    const VEHICLE_CHANNEL_NEW = 'NEW';
+    const VEHICLE_CHANNEL_KM0 = 'KM0';
+    const VEHICLE_CHANNEL_USED = 'USED';
+
     // Properties
     // =========================================================================
 
@@ -127,8 +132,8 @@ class Action extends Crm
                 'name' => Craft::t('formie-actioncrm', 'Versione veicolo'),
             ]),
             new IntegrationField([
-                'handle' => 'vehicleUsed',
-                'name' => Craft::t('formie-actioncrm', 'È un veicolo usato?'),
+                'handle' => 'vehicleChannelId',
+                'name' => Craft::t('formie-actioncrm', "Canale d'acquisto (NEW, USED, KM0)"),
             ]),
             new IntegrationField([
                 'handle' => 'ownedVehicleKm',
@@ -155,6 +160,9 @@ class Action extends Crm
                 ? PrivacyTypeEnum::MARKETING->value
                 : PrivacyTypeEnum::REQUEST->value;
 
+            $vehicleChannelId = $this->vehicledChannelId($formValues['vehicleChannelId'] ?? null);
+            $isUsedVehicle = $vehicleChannelId ? $vehicleChannelId === 'USED' : null;
+
             $payload = [
                 'ImportSourceID' => App::parseEnv($this->sourceId),
                 'ImportSourceLeadID' => StringHelper::UUID(),
@@ -170,7 +178,8 @@ class Action extends Crm
                 'BrandName' => $formValues['vehicleBrandName'] ?? null,
                 'ModelName' => $formValues['vehicleModelName'] ?? null,
                 'VersionName' => $formValues['vehicleVersionName'] ?? null,
-                'IsUsedVehicle' => $formValues['vehicleUsed'] ?? null,
+                'VehicleChannelID' => $vehicleChannelId,
+                'IsUsedVehicle' => $isUsedVehicle,
                 'OwnedKm' => $formValues['ownedVehicleKm'] ?? null,
                 'OwnedNumberPlate' => $formValues['ownedVehiclePlate'] ?? null,
                 'SourceURI' => $formValues['sourceUri'] ?? Craft::$app->getSites()->getPrimarySite()->getBaseUrl(),
@@ -287,5 +296,15 @@ class Action extends Crm
         ];
 
         return $rules;
+    }
+
+    public function vehicledChannelId(?string $vehicleType): ?string
+    {
+        return match (strtoupper($vehicleType)) {
+            self::VEHICLE_CHANNEL_NEW => 'NEW',
+            self::VEHICLE_CHANNEL_KM0 => 'KM0',
+            self::VEHICLE_CHANNEL_USED => 'USED',
+            default => null,
+        };
     }
 }
