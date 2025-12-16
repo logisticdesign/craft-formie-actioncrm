@@ -99,6 +99,14 @@ class Action extends Crm
                 'name' => Craft::t('formie-actioncrm', 'Messaggio'),
             ]),
             new IntegrationField([
+                'handle' => 'marketing',
+                'name' => Craft::t('formie-actioncrm', 'Consenso Marketing'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleUid',
+                'name' => Craft::t('formie-actioncrm', 'UID Veicolo'),
+            ]),
+            new IntegrationField([
                 'handle' => 'salesDepartment',
                 'name' => Craft::t('formie-actioncrm', 'Reparto (default: SALES)'),
             ]),
@@ -107,12 +115,28 @@ class Action extends Crm
                 'name' => Craft::t('formie-actioncrm', 'Tipo richiesta Lead (default: INFO)'),
             ]),
             new IntegrationField([
-                'handle' => 'marketing',
-                'name' => Craft::t('formie-actioncrm', 'Consenso Marketing'),
+                'handle' => 'vehicleBrandName',
+                'name' => Craft::t('formie-actioncrm', 'Marca veicolo'),
             ]),
             new IntegrationField([
-                'handle' => 'vehicleUid',
-                'name' => Craft::t('formie-actioncrm', 'UID Veicolo'),
+                'handle' => 'vehicleModelName',
+                'name' => Craft::t('formie-actioncrm', 'Modello veicolo'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleVersionName',
+                'name' => Craft::t('formie-actioncrm', 'Versione veicolo'),
+            ]),
+            new IntegrationField([
+                'handle' => 'vehicleUsed',
+                'name' => Craft::t('formie-actioncrm', 'È un veicolo usato?'),
+            ]),
+            new IntegrationField([
+                'handle' => 'ownedVehicleKm',
+                'name' => Craft::t('formie-actioncrm', 'Km veicolo posseduto'),
+            ]),
+            new IntegrationField([
+                'handle' => 'ownedVehiclePlate',
+                'name' => Craft::t('formie-actioncrm', 'Targa veicolo posseduto'),
             ]),
         ];
 
@@ -143,6 +167,12 @@ class Action extends Crm
                 'LastName' => $formValues['lastName'] ?? null,
                 'Email1' => $formValues['email'] ?? null,
                 'Mobile1' => $formValues['phone'] ?? null,
+                'BrandName' => $formValues['vehicleBrandName'] ?? null,
+                'ModelName' => $formValues['vehicleModelName'] ?? null,
+                'VersionName' => $formValues['vehicleVersionName'] ?? null,
+                'IsUsedVehicle' => $formValues['vehicleUsed'] ?? null,
+                'OwnedKm' => $formValues['ownedVehicleKm'] ?? null,
+                'OwnedNumberPlate' => $formValues['ownedVehiclePlate'] ?? null,
                 'SourceURI' => $formValues['sourceUri'] ?? Craft::$app->getSites()->getPrimarySite()->getBaseUrl(),
                 'OriginCodes' => [
                     ['OriginCode' => 'utm_source', 'OriginValue' => 'website'],
