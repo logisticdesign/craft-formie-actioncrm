@@ -4,7 +4,9 @@ Action CRM integration for Formie
 
 ## Requirements
 
-This plugin requires Craft CMS 5.6.0 or later, and PHP 8.2 or later.
+This plugin requires Craft CMS 5.6.0 or later, Formie 4.0 or later, and PHP 8.2 or later.
+
+For Formie 3, use version 1.x of this plugin.
 
 ## Installation
 

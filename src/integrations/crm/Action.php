@@ -2,10 +2,10 @@
 
 namespace logisticdesign\formieactioncrm\integrations\crm;
 
-use Carbon\Carbon;
 use Craft;
 use craft\base\Event;
 use craft\helpers\App;
+use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use GuzzleHttp\Client;
 use logisticdesign\formieactioncrm\enums\ContactSourceEnum;
@@ -16,16 +16,20 @@ use logisticdesign\formieactioncrm\enums\PrivacyTypeEnum;
 use logisticdesign\formieactioncrm\enums\VehicleChannelEnum;
 use logisticdesign\formieactioncrm\events\PayloadEvent;
 use Throwable;
+use verbb\formie\attributes\FormIntegrationSetting;
+use verbb\formie\attributes\Sensitive;
 use verbb\formie\base\Crm;
+use verbb\formie\base\FormInterface;
 use verbb\formie\base\Integration;
 use verbb\formie\elements\Submission;
+use verbb\formie\models\IntegrationConfig;
 use verbb\formie\models\IntegrationField;
-use verbb\formie\models\IntegrationFormSettings;
+use verbb\formie\models\IntegrationResult;
 
 class Action extends Crm
 {
     const EVENT_BEFORE_SEND_PAYLOAD = 'onBeforeSendPayload';
-    const EVENT_AFTER_SEND_PAYLOAD = 'onBeforeSendPayload';
+    const EVENT_AFTER_SEND_PAYLOAD = 'onAfterSendPayload';
 
     // Canale d'acquisto veicolo
     const VEHICLE_CHANNEL_NEW = 'NEW';
@@ -35,10 +39,15 @@ class Action extends Crm
     // Properties
     // =========================================================================
 
+    #[Sensitive]
     public ?string $username = null;
+
+    #[Sensitive]
     public ?string $password = null;
+
     public ?string $sourceId = null;
 
+    #[FormIntegrationSetting]
     public ?array $leadFieldMapping = null;
 
     // Methods
@@ -66,14 +75,7 @@ class Action extends Crm
         return Craft::$app->getView()->renderTemplate('formie-actioncrm/integrations/crm/action/_pluginSettings', $variables);
     }
 
-    public function getFormSettingsHtml($form): string
-    {
-        $variables = $this->getFormSettingsHtmlVariables($form);
-
-        return Craft::$app->getView()->renderTemplate('formie-actioncrm/integrations/crm/action/_formSettings', $variables);
-    }
-
-    public function fetchFormSettings(): IntegrationFormSettings
+    public function fetchConfig(): IntegrationConfig
     {
         $fields = [
             new IntegrationField([
@@ -145,15 +147,62 @@ class Action extends Crm
             ]),
         ];
 
-        return new IntegrationFormSettings([
+        return new IntegrationConfig([
             'lead' => $fields,
         ]);
     }
 
-    public function sendPayload(Submission $submission): bool
+    public function fetchConnection(): bool
     {
         try {
-            $formValues = $this->getFieldMappingValues($submission, $this->leadFieldMapping, $this->getFormSettingValue('lead'));
+            $this->getActionAccessToken();
+        } catch (Throwable $e) {
+            Integration::apiError($this, $e);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    public function getActionAccessToken(): string
+    {
+        $client = Craft::createGuzzleClient([
+            'base_uri' => 'http://service.action-crm.com/',
+        ]);
+
+        $response = $client->post('login', [
+            'form_params' => [
+                'userName' => App::parseEnv($this->username),
+                'password' => App::parseEnv($this->password),
+                'grant_type' => 'password',
+            ],
+        ]);
+
+        $body = json_decode($response->getBody(), true);
+
+        return $body['access_token'];
+    }
+
+    public function vehicledChannelId(?string $vehicleType): ?string
+    {
+        return match (strtoupper((string) $vehicleType)) {
+            self::VEHICLE_CHANNEL_NEW => 'NEW',
+            self::VEHICLE_CHANNEL_KM0 => 'KM0',
+            self::VEHICLE_CHANNEL_USED => 'USED',
+            default => null,
+        };
+    }
+
+    // Protected Methods
+    // =========================================================================
+
+    protected function executePayload(Submission $submission): IntegrationResult
+    {
+        $this->beginPayloadDelivery($submission);
+
+        try {
+            $formValues = $this->getFieldMappingValues($submission, $this->leadFieldMapping, 'lead');
             $formHandle = $submission->getFormHandle();
 
             $privacyType = ($formValues['marketing'] ?? null)
@@ -212,34 +261,36 @@ class Action extends Crm
 
             $response = $this->deliverPayload($submission, 'api/lead/post', [$payload]);
 
+            if ($response === false) {
+                return $this->resultForPayload(false);
+            }
+
             $event->payload = $payload;
             $event->response = $response;
 
             Event::trigger(static::class, self::EVENT_AFTER_SEND_PAYLOAD, $event);
 
-            if ($response['IsSuccess'] === false) {
-                Integration::apiError($this, $response['ErrorMessage']);
+            if (($response['IsSuccess'] ?? false) !== true) {
+                Integration::error($this, Craft::t('formie-actioncrm', 'Lead rifiutato da Action CRM: {errors}', [
+                    'errors' => $this->getImportErrors($response),
+                ]), true);
 
-                return false;
+                return $this->resultForPayload(false);
             }
         } catch (Throwable $e) {
             Integration::apiError($this, $e);
 
-            return false;
+            return $this->resultForPayload(false);
         }
 
-        return true;
+        return $this->resultForPayload(true);
     }
 
-    public function getClient(): Client
+    protected function defineClient(): Client
     {
-        if ($this->_client) {
-            return $this->_client;
-        }
-
         $accessToken = $this->getActionAccessToken();
 
-        return $this->_client = Craft::createGuzzleClient([
+        return Craft::createGuzzleClient([
             'base_uri' => 'http://service.action-crm.com/',
             'headers' => [
                 'Authorization' => "Bearer {$accessToken}",
@@ -248,45 +299,26 @@ class Action extends Crm
         ]);
     }
 
-    public function getActionAccessToken(): string
+    protected function defineFormSettingsSchema(FormInterface $form): array
     {
-        $client = Craft::createGuzzleClient([
-            'base_uri' => 'http://service.action-crm.com/',
+        $schema = parent::defineFormSettingsSchema($form);
+
+        $schema[] = $this->createFieldMappingField([
+            'name' => 'leadFieldMapping',
+            'dataLabel' => 'Lead',
+            'dataKey' => 'lead',
         ]);
 
-        $response = $client->post('login', [
-            'form_params' => [
-                'userName' => App::parseEnv($this->username),
-                'password' => App::parseEnv($this->password),
-                'grant_type' => 'password',
-            ],
-        ]);
-
-        $body = json_decode($response->getBody(), true);
-
-        return $body['access_token'];
+        return $schema;
     }
 
-    public function fetchConnection(): bool
-    {
-        try {
-            $this->getActionAccessToken();
-        } catch (Throwable $e) {
-            Integration::apiError($this, $e);
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public function defineRules(): array
+    protected function defineRules(): array
     {
         $rules = parent::defineRules();
 
         $rules[] = [['username', 'password', 'sourceId'], 'required'];
 
-        $lead = $this->getFormSettingValue('lead');
+        $lead = $this->getConfigValue('lead');
 
         // Validate when saving form settings
         $rules[] = [
@@ -298,13 +330,22 @@ class Action extends Crm
         return $rules;
     }
 
-    public function vehicledChannelId(?string $vehicleType): ?string
+    // Private Methods
+    // =========================================================================
+
+    /**
+     * Action CRM restituisce gli errori per ogni lead in `ImportResult[].ImportErrors`.
+     */
+    private function getImportErrors(mixed $response): string
     {
-        return match (strtoupper($vehicleType)) {
-            self::VEHICLE_CHANNEL_NEW => 'NEW',
-            self::VEHICLE_CHANNEL_KM0 => 'KM0',
-            self::VEHICLE_CHANNEL_USED => 'USED',
-            default => null,
-        };
+        $errors = [];
+
+        foreach ((array) ($response['ImportResult'] ?? []) as $result) {
+            foreach ((array) ($result['ImportErrors'] ?? []) as $error) {
+                $errors[] = (string) $error;
+            }
+        }
+
+        return $errors ? implode('; ', $errors) : Json::encode($response);
     }
 }
